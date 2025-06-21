@@ -1,46 +1,69 @@
-from typing import Dict
+from fastapi import FastAPI, HTTPException, Depends, Form
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from jose import JWTError, jwt
+from datetime import datetime, timedelta
+from typing import Dict, Optional
 
-from fastapi import FastAPI, HTTPException, Depends
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
+app = FastAPI(title="RAG Chatbot Auth API", description="Handles user registration and JWT-based login")
 
+# In-memory users DB (replace with real DB in production)
+users_db: Dict[str, Dict[str, str]] = {}
 
-app = FastAPI()
-security = HTTPBasic()
+# JWT configuration
+SECRET_KEY = "supersecretkey"  # Change this in production!
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 30
 
-# Dummy user database
-users_db: Dict[str, Dict[str, str]] = {
-    "Tony": {"password": "password123", "role": "engineering"},
-    "Bruce": {"password": "securepass", "role": "marketing"},
-    "Sam": {"password": "financepass", "role": "finance"},
-    "Peter": {"password": "pete123", "role": "engineering"},
-    "Sid": {"password": "sidpass123", "role": "marketing"},
-    "Natasha": {"passwoed": "hrpass123", "role": "hr"}
-}
+# OAuth2 scheme
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/login")
 
+# Create JWT token
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-# Authentication dependency
-def authenticate(credentials: HTTPBasicCredentials = Depends(security)):
-    username = credentials.username
-    password = credentials.password
+# Authenticate user from users_db
+def authenticate_user(username: str, password: str):
     user = users_db.get(username)
     if not user or user["password"] != password:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        return None
     return {"username": username, "role": user["role"]}
 
+# Decode and return current user info from token
+def get_current_user(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username = payload.get("sub")
+        role = payload.get("role")
+        if not username or not role:
+            raise HTTPException(status_code=401, detail="Invalid token payload.")
+        return {"username": username, "role": role}
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid or expired token.")
 
-# Login endpoint
-@app.get("/login")
-def login(user=Depends(authenticate)):
-    return {"message": f"Welcome {user['username']}!", "role": user["role"]}
+# ✅ Registration endpoint
+@app.post("/register")
+def register(username: str = Form(...), password: str = Form(...), role: str = Form(...)):
+    if username in users_db:
+        raise HTTPException(status_code=400, detail="Username already exists.")
+    users_db[username] = {"password": password, "role": role}
+    return {"message": f"User '{username}' registered successfully as '{role}'."}
 
+# ✅ Login endpoint — returns JWT token
+@app.post("/login")
+def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = authenticate_user(form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Incorrect username or password.")
+    access_token = create_access_token(data={"sub": user["username"], "role": user["role"]})
+    return {"access_token": access_token, "token_type": "bearer"}
 
-# Protected test endpoint
-@app.get("/test")
-def test(user=Depends(authenticate)):
-    return {"message": f"Hello {user['username']}! You can now chat.", "role": user["role"]}
-
-
-# Protected chat endpoint
-@app.post("/chat")
-def query(user=Depends(authenticate), message: str = "Hello"):
-    return "Implement this endpoint."
+# ✅ Protected endpoint to verify token
+@app.get("/protected")
+def protected_route(user=Depends(get_current_user)):
+    return {
+        "message": f"Hello {user['username']}, your role is '{user['role']}'.",
+        "user": user
+    }
