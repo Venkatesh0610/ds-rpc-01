@@ -1,9 +1,28 @@
 import streamlit as st
-
+print("FEATURES PAGE=============================")
 # --- Page Config ---
 st.set_page_config(page_title="Features - FinEdge", layout="wide")
 
-username = st.session_state.get("username", "Guest")
+
+# username = st.session_state.get("username", "Guest")
+query_params = st.query_params
+username = query_params.get("username", [None])[0]
+print(username)
+if "username" in query_params:
+    st.session_state["username"] = query_params["username"]
+    st.session_state["logged_in"] = True  # Trust based on query param if required
+page = query_params.get("page", [None])
+print("Page details================",st.session_state)
+if page == "features":
+    st.switch_page("pages/feature.py")
+elif page == "about":
+    st.switch_page("pages/about.py")
+elif page == "contact":
+    st.switch_page("pages/contact.py")
+elif page == "auth_page":
+    st.switch_page("pages/_auth_page.py")
+elif page == "home":
+    st.switch_page("pages/main_content.py")
 
 
 # --- Hide Sidebar ---
@@ -74,14 +93,11 @@ function handleLogout() {{
 <div class="header-container">
     <div class="header-logo">FinEdge.</div>
     <div class="header-nav">
-        <a href="main_content">Home</a>
-        <a href="?page=about">About</a>
-        <a href="?page=feature">Features</a>
-        <a href="?page=contact">Contact</a>
+        <a href="?page=home&username={username}" target="_self">Home</a>
+        <a href="?page=features&username={username}" target="_self">Features</a>
+        <a href="?page=about&username={username}" target="_self">About</a>
     </div>
     <div style="display: flex; align-items: center; gap: 15px;">
-        <span class="user-greeting">Hello, {username}!</span>
-        <button class="logout-button" onclick="handleLogout()">Logout</button>
     </div>
 </div>
 """, unsafe_allow_html=True)

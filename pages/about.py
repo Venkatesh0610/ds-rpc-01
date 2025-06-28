@@ -1,211 +1,129 @@
 import streamlit as st
-import streamlit.components.v1 as components
 
-# --- Page Configuration ---
-st.set_page_config(page_title="Finbot Chat", layout="wide")
+print("ABOUT PAGE=============================")
+st.set_page_config(page_title="About - FinEdge", layout="wide")
+query_params = st.session_state.get("query_params")
+username = query_params.get("username", "Guest")
+if "username" in query_params:
+    st.session_state["username"] = query_params["username"]
+    st.session_state["logged_in"] = True  # Trust based on query param if required
+page = query_params.get("page", [None])
+print("Page details================",st.session_state)
+if page == "features":
+    st.switch_page("pages/feature.py")
+elif page == "about":
+    st.switch_page("pages/about.py")
+elif page == "contact":
+    st.switch_page("pages/contact.py")
+elif page == "auth_page":
+    st.switch_page("pages/_auth_page.py")
+elif page == "home":
+    st.switch_page("pages/main_content.py")
 
-# --- Auth Check (important for all pages) ---
-logged_in = st.session_state.get("logged_in", False)
-username = st.session_state.get("username", "Guest")
-
-if not logged_in:
-    st.switch_page("pages/_auth_page.py") # Redirect to auth if not logged in
-    st.stop()
-
-# --- Custom CSS for the chatbot page ---
+# --- Hide Sidebar ---
 st.markdown("""
 <style>
-/* General body background for this page */
-body {
-    background-color: #f0f2f6; /* Light greyish-blue background */
-    margin: 0;
-    padding: 0;
-}
-
-/* Streamlit specific hides/adjustments */
 [data-testid="stSidebar"], [data-testid="collapsedControl"] {
     display: none !important;
-}
-.stApp {
-    background-color: #f0f2f6; /* Apply background to the entire Streamlit app container */
-}
-
-/* Header Styling (can be re-used or simplified for this page) */
-.header-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 40px;
-    background: linear-gradient(90deg, #6C5CE7, #8A2BE2); /* Purple to Violet gradient */
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-    position: sticky; /* Make header stick */
-    top: 0; /* Stick to the top */
-    z-index: 1000; /* Ensure it's above other content */
-    width: 100%; /* Ensure it spans full width */
-    box-sizing: border-box; /* Include padding in width */
-}
-.header-logo {
-    font-size: 24px;
-    font-weight: 700;
-    color: white; /* White color for logo on gradient background */
-}
-.header-nav {
-    display: flex;
-    gap: 30px;
-}
-.header-nav a {
-    color: white; /* White color for navigation links */
-    text-decoration: none;
-    font-weight: 500;
-    transition: color 0.3s ease;
-}
-.header-nav a:hover {
-    color: #FFC107; /* Amber on hover */
-}
-.user-greeting {
-    font-weight: 600;
-    color: #FFC107; /* Amber for greeting */
-}
-.logout-button {
-    background-color: #f44336;
-    color: white;
-    padding: 10px 20px;
-    border-radius: 8px;
-    font-weight: 600;
-    cursor: pointer;
-    border: none;
-}
-.logout-button:hover {
-    background-color: #d32f2f;
-}
-
-/* Chatbot container for the dedicated page */
-.chatbot-page-container {
-    display: flex;
-    justify-content: center; /* Center the chatbot horizontally */
-    align-items: center; /* Center the chatbot vertically */
-    min-height: calc(100vh - 70px); /* Adjust height for header, 70px approx header height */
-    padding: 20px;
-    box-sizing: border-box;
-}
-
-.chat-window {
-    width: 100%; /* Take full width of its container (which is centered) */
-    max-width: 600px; /* Max width for readability */
-    height: 70vh; /* Make it tall on the page */
-    background-color: white;
-    border-radius: 15px;
-    box-shadow: 0 8px 20px rgba(0,0,0,0.25);
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-}
-
-.chat-header {
-    background: linear-gradient(135deg, #4158d0, #c850c0);
-    color: white;
-    padding: 15px;
-    text-align: center;
-    font-weight: bold;
-    font-size: 18px;
-}
-
-#chatMessages {
-    flex: 1;
-    padding: 15px;
-    overflow-y: auto;
-    background-color: #f7f7f7;
-    display: flex;
-    flex-direction: column;
-    scroll-behavior: smooth;
-}
-
-.message {
-    padding: 10px 14px;
-    border-radius: 12px;
-    font-size: 15px;
-    max-width: 80%;
-    margin: 8px 0;
-}
-
-.message.user {
-    background-color: #e0f7fa; /* Light blue */
-    align-self: flex-end;
-}
-
-.message.bot {
-    background-color: #eeeeee; /* Light grey */
-    align-self: flex-start;
-}
-
-.chat-input {
-    padding: 15px;
-    border-top: 1px solid #ccc;
-    background-color: #fff;
-}
-
-.chat-input input {
-    width: 100%;
-    padding: 12px;
-    font-size: 16px;
-    border-radius: 8px;
-    border: 1px solid #ddd;
-    outline: none;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# --- Header (re-use the same header structure for consistency) ---
+# --- Header ---
 st.markdown(f"""
+<style>
+.header-container {{
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 40px;
+    background: linear-gradient(90deg, #6C5CE7, #8A2BE2);
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}}
+.header-logo {{
+    font-size: 24px;
+    font-weight: 700;
+    color: white;
+}}
+.header-nav {{
+    display: flex;
+    gap: 30px;
+}}
+.header-nav a {{
+    color: white;
+    text-decoration: none;
+    font-weight: 500;
+    transition: color 0.3s ease;
+}}
+.header-nav a:hover {{
+    color: #FFC107;
+}}
+.profile-container {{
+    margin-top: 60px;
+    text-align: center;
+}}
+.profile-pic {{
+    width: 140px;
+    height: 140px;
+    border-radius: 50%;
+    object-fit: cover;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}}
+.profile-name {{
+    font-size: 28px;
+    font-weight: 700;
+    margin-top: 15px;
+    color: #333;
+}}
+.profile-desc {{
+    font-size: 16px;
+    color: #666;
+    max-width: 600px;
+    margin: 15px auto;
+}}
+.social-icons {{
+    margin-top: 20px;
+}}
+.social-icons a {{
+    margin: 0 10px;
+    text-decoration: none;
+}}
+.social-icons img {{
+    width: 32px;
+    height: 32px;
+    transition: transform 0.2s ease-in-out;
+}}
+.social-icons img:hover {{
+    transform: scale(1.1);
+}}
+</style>
+
 <div class="header-container">
     <div class="header-logo">FinEdge.</div>
     <div class="header-nav">
-        <a href="/">Home</a> <a href="#about">About</a>
-        <a href="#features">Features</a>
-        <a href="#contact">Contact</a>
+        <a href="?page=home&username={username}" target="_self">Home</a>
+        <a href="?page=features&username={username}" target="_self">Features</a>
+        <a href="?page=about&username={username}" target="_self">About</a>
     </div>
     <div style="display: flex; align-items: center; gap: 15px;">
-        <span class="user-greeting">Hello, {username}!</span>
-        <button class="logout-button" onclick="handleLogout()">Logout</button>
-    </div>
-</div>
-<script>
-function handleLogout() {{
-    window.parent.postMessage({{ type: 'streamlit:setSessionState', data: {{ logged_in: false }} }}, '*');
-}}
-</script>
-""", unsafe_allow_html=True)
-
-# --- Chatbot content for the dedicated page ---
-st.markdown("""
-<div class="chatbot-page-container">
-    <div class="chat-window" id="chatWindow">
-        <div class="chat-header">FinBot</div>
-        <div id="chatMessages">
-            <div class="message bot"><strong>FinBot:</strong> Hello 👋 I'm your AI assistant. How can I help you today?</div>
-        </div>
-        <div class="chat-input">
-            <input type="text" id="chatInput" placeholder="Type your message..." onkeydown="handleEnter(event)">
-        </div>
     </div>
 </div>
 
-<script>
-function handleEnter(event) {
-    if (event.key === "Enter") {
-        const input = document.getElementById("chatInput");
-        const msg = input.value.trim();
-        if (msg !== "") {
-            const chat = document.getElementById("chatMessages");
-            chat.innerHTML += `<div class='message user'><strong>You:</strong> ${msg}</div>`;
-            // Simulate bot response - In a real app, this would be an API call
-            chat.innerHTML += `<div class='message bot'><strong>FinBot:</strong> I received your message: "${msg}". This is a demo response.</div>`;
-            input.value = "";
-            setTimeout(() => {
-                chat.scrollTop = chat.scrollHeight;
-            }, 100);
-        }
-    }
-}
-</script>
+<div class="profile-container">
+    <img class="profile-pic" src="https://avatars.githubusercontent.com/u/62538952?s=400&u=85437376424597075f61b8ef9a90f0aa0a3565bb&v=4" alt="Profile Picture"/>
+    <div class="profile-name">A Venkatesh</div>
+    <div class="profile-desc">
+        Hi, I'm a Senior AI/ML Analyst
+with 4+ years of experience in computer vision, ML, deep learning, and LLMs, I build smart solutions and love sharing AI insights through my content on YouTube, Medium, and more.
+    </div>
+    <div class="social-icons">
+        <a href="http://www.youtube.com/@avenkatesh0610" target="_blank"><img src="https://img.icons8.com/ios-filled/50/FF0000/youtube-play.png" alt="YouTube"/></a>
+        <a href="http://linkedin.com/in/venkatesh-a-400459191" target="_blank"><img src="https://img.icons8.com/ios-filled/50/0077B5/linkedin.png" alt="LinkedIn"/></a>
+        <a href="http://medium.com/@avenkatesh0610" target="_blank"><img src="https://img.icons8.com/ios-filled/50/000000/medium-logo.png" alt="Medium"/></a>
+        <a href="https://github.com/Venkatesh0610" target="_blank"><img src="https://img.icons8.com/ios-filled/50/000000/github.png" alt="GitHub"/></a>
+    </div>
+</div>
 """, unsafe_allow_html=True)

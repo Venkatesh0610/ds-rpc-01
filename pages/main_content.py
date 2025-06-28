@@ -1,42 +1,93 @@
 import streamlit as st
 import streamlit.components.v1 as components
+import os
+import json
+
+
+def restore_session_state():
+    # Get username from query params (shared in link)
+    query_params = st.session_state
+    username = query_params.get("username")
+    print("user name ---",username)
+    base_dir = os.path.dirname(os.path.abspath(__file__))  # pages/
+    users_file_path = os.path.abspath(os.path.join(base_dir, "..",'app', "users.json"))
+    print(users_file_path)
+
+    if username:
+        try:
+            with open(users_file_path, "r") as f:
+                users = json.load(f)
+
+            # ✅ Search through values (user objects)
+            user = next((u for u in users.values() if u["username"] == username), None)
+
+            if user and user.get("logged_in"):
+                st.session_state["username"] = user["username"]
+                st.session_state["logged_in"] = True
+                st.session_state["role"] = user.get("role")
+                print(f"✅ Session restored for {username}")
+            else:
+                print(f"❌ Not logged in or user not found: {username}")
+                st.session_state["logged_in"] = False
+                st.session_state["role"] = None
+
+        except Exception as e:
+            print(f"❌ Error loading users.json: {e}")
+            st.session_state["logged_in"] = False
+            st.session_state["role"] = None
+    else:
+        print("ℹ️ No username found in query params.")
+        st.session_state["logged_in"] = False
+        st.session_state["role"] = None
+restore_session_state()
 
 # --- Page Redirection Based on Query Params ---
 query_params = st.query_params
-page = query_params.get("page", [None])[0]
+page = query_params.get("page", [None])
 if page == "features":
+    st.query_params["page"] = "main_content"
+    st.query_params["username"] = st.session_state.get("username", "Guest")
     st.switch_page("pages/feature.py")
 elif page == "about":
     st.switch_page("pages/about.py")
 elif page == "contact":
     st.switch_page("pages/contact.py")
+elif page == "auth_page":
+    st.switch_page("pages/_auth_page.py")
 elif page == "home":
-    st.switch_page("main_content.py")
+    st.switch_page("pages/main_content.py")
 
 # --- Page Configuration ---
 st.set_page_config(page_title="Fintech Portal", layout="wide")
 
+print("===========",st.session_state)
 # --- Auth Check FIRST ---
 logged_in = st.session_state.get("logged_in", False)
 username = st.session_state.get("username", "Guest")
-
-if not logged_in:
-    st.switch_page("pages/_auth_page.py")
-    st.stop()
+role = st.session_state.get("role", None)
 
 # --- THEN Handle Query Params ---
 query_params = st.query_params
 page = query_params.get("page", [None])[0]
 
-if page == "features":
-    st.switch_page("pages/feature.py")
-elif page == "about":
-    st.switch_page("pages/about.py")
-elif page == "contact":
-    st.switch_page("pages/contact.py")
-elif page == "home":
-    st.switch_page("main_content.py")
+# 👇 Determine login state
+logged_in = st.session_state.get("logged_in", False)
+username = st.session_state.get("username", "Guest")
 
+# 👇 Conditionally render login/logout buttons
+if logged_in:
+    username = st.session_state.get("username", "User")
+    header_buttons = f'''<div class="user-greeting"><b>Hi, {username}</b></div>
+        <form action="?page=logout" method="get">
+            <button class="logout-button" type="submit">Logout</button>
+        </form>'''
+else:
+    header_buttons = f'''<div class="auth-buttons">
+        <a href="?page=auth_page&mode=login&username={username}" target="_self" class="auth-button login-btn">Login</a>
+        <a href="?page=auth_page&mode=register&username={username}" target="_self" class="auth-button register-btn">Register</a>
+    </div>'''
+
+msg = "test"
 # --- Hide Sidebar ---
 st.markdown("""
 <style>
@@ -49,6 +100,39 @@ st.markdown("""
 # --- Header ---
 st.markdown(f"""
 <style>
+.user-greeting {{
+    font-weight: 600;
+    color: #FFC107;
+    margin-right: 15px;
+}}
+.auth-button {{
+    display: inline-block;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    text-decoration: none;  /* 🔥 Removes underline */
+    cursor: pointer;
+    color: white;
+    transition: background-color 0.3s ease;
+}}
+
+.login-btn {{
+    background-color: #1E88E9; /* Blue */
+}}
+
+.login-btn:hover {{
+    background-color: #6A5ACD;
+}}
+
+.register-btn {{
+    background-color: #43A047; /* Green */
+}}
+
+.register-btn:hover {{
+    background-color: #2E7D32;
+}}
+
 .header-container {{
     display: flex;
     justify-content: space-between;
@@ -78,10 +162,6 @@ st.markdown(f"""
 .header-nav a:hover {{
     color: #FFC107;
 }}
-.user-greeting {{
-    font-weight: 600;
-    color: #FFC107;
-}}
 .logout-button {{
     background-color: #f44336;
     color: white;
@@ -96,26 +176,20 @@ st.markdown(f"""
 }}
 </style>
 
-<script>
-function handleLogout() {{
-    window.parent.postMessage({{ type: 'streamlit:setSessionState', data: {{ logged_in: false }} }}, '*');
-}}
-</script>
-
 <div class="header-container">
     <div class="header-logo">FinEdge.</div>
     <div class="header-nav">
-        <a href="?page=home">Home</a>
-        <a href="?page=about">About</a>
-        <a href="/feature">Features</a>
-        <a href="?page=contact">Contact</a>
+        <a href="?page=home&username={username}" target="_self">Home</a>
+        <a href="?page=features&username={username}" target="_self">Features</a>
+        <a href="?page=about&username={username}" target="_self">About</a>
     </div>
     <div style="display: flex; align-items: center; gap: 15px;">
-        <span class="user-greeting">Hello, {username}!</span>
-        <button class="logout-button" onclick="handleLogout()">Logout</button>
+        {header_buttons}
     </div>
 </div>
 """, unsafe_allow_html=True)
+
+
 
 # --- Main Layout ---
 col1, col2 = st.columns([3, 1])
@@ -259,8 +333,7 @@ with col1:
     <div class="hero-min">
         <h1>Welcome to FinEdge Portal</h1>
         <p>Access powerful tools & insights with FinBot, your smart AI assistant designed to simplify work across departments.</p>
-        <button onclick="window.parent.postMessage({type: 'streamlit:setSessionState', data: {open_chatbot: true}}, '*')">Chat with FinBot</button>
-    </div>
+        </div>
 
     <h2 style="text-align: center; color: #333; margin-top: 40px; margin-bottom: 20px;">Our Key Capabilities</h2>
     <div class="card-grid">
@@ -294,12 +367,12 @@ with col1:
     <h2 style="text-align: center; color: #333; margin-top: 60px; margin-bottom: 20px;">Roles and Permissions</h2>
     <div class="card-grid">
         <div class="colored-card role-card-1">
-            <img src="https://img.icons8.com/ios-filled/100/FFFFFF/bank.png" alt="Finance Icon" class="card-icon-img">
+            <img src="https://png.pngtree.com/png-vector/20190301/ourmid/pngtree-vector-stock-market-icon-png-image_747147.jpg" alt="Finance Icon" class="card-icon-img">
             <h4>Finance Team</h4>
             <p>Access to financial reports, marketing expenses, equipment costs, reimbursements.</p>
         </div>
         <div class="colored-card role-card-2">
-            <img src="https://img.icons8.com/ios-filled/100/FFFFFF/marketing.png" alt="Marketing Icon" class="card-icon-img">
+            <img src="https://cdn-icons-png.flaticon.com/512/4547/4547422.png" alt="Marketing Icon" class="card-icon-img">
             <h4>Marketing Team</h4>
             <p>Access to campaign performance data, customer feedback, and sales metrics.</p>
         </div>
@@ -314,7 +387,7 @@ with col1:
             <p>Access to technical architecture, development processes, and operational guidelines.</p>
         </div>
         <div class="colored-card role-card-5">
-            <img src="https://img.icons8.com/ios-filled/100/FFFFFF/boss.png" alt="C-Level Icon" class="card-icon-img">
+            <img src="https://cdn-icons-png.flaticon.com/512/71/71028.png" alt="C-Level Icon" class="card-icon-img">
             <h4>C-Level Executives</h4>
             <p>Full access to all company data.</p>
         </div>
@@ -331,10 +404,10 @@ with col1:
             <img src="https://img.icons8.com/color/96/python.png" alt="Python Icon" class="tech-icon-img">
             <h5>Python</h5>
         </div>
-        <div class="tech-stack-card">
-            <img src="https://img.icons8.com/color/96/fastapi.png" alt="FastAPI Icon" class="tech-icon-img">
-            <h5>FastAPI</h5>
-        </div>
+            <div class="tech-stack-card">
+                <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQgqHmPo-63nxV3scHcaP7x3QPw7RzjagCoig&s" alt="FastAPI Icon" class="tech-icon-img">
+                <h5>FastAPI</h5>
+            </div>
         <div class="tech-stack-card">
             <img src="https://img.icons8.com/color/96/streamlit.png" alt="Streamlit Icon" class="tech-icon-img">
             <h5>Streamlit</h5>
@@ -353,140 +426,176 @@ with col1:
 
 # Right column for chatbot (bottom-right aligned inside column)
 with col2:
-    components.html("""
-    <style>
-    .chat-container {
-        position: relative;
-        width: 100%;
-        height: 500px; /* Adjust based on content height */
-    }
-
-    .chat-toggle {
-        position: absolute;
-        bottom: 0;
-        right: 0;
-        background-color: #4CAF50;
-        color: white;
-        border-radius: 50%;
-        width: 60px;
-        height: 60px;
-        font-size: 28px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        cursor: pointer;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        transition: background 0.3s ease;
-    }
-
-    .chat-toggle:hover {
-        background-color: #388e3c;
-    }
-
-    .chat-window {
-        display: none;
-        position: absolute;
-        bottom: 80px;
-        right: 0;
-        width: 100%;
-        height: 420px;
-        background-color: white;
-        border-radius: 15px;
-        box-shadow: 0 8px 20px rgba(0,0,0,0.25);
-        overflow: hidden;
-        flex-direction: column;
-    }
-
-    .chat-window.open {
-        display: flex;
-        flex-direction: column;
-    }
-
-    .chat-header {
-        background: linear-gradient(135deg, #4158d0, #c850c0);
-        color: white;
-        padding: 12px;
-        text-align: center;
-        font-weight: bold;
-        font-size: 16px;
-    }
-
-    #chatMessages {
-        flex: 1;
-        padding: 10px;
-        overflow-y: auto;
-        background-color: #f7f7f7;
-        display: flex;
-        flex-direction: column;
-        scroll-behavior: smooth;
-    }
-
-    .message {
-        padding: 10px 14px;
-        border-radius: 12px;
-        font-size: 14px;
-        max-width: 85%;
-        margin: 5px 0;
-    }
-
-    .message.user {
-        background-color: #e0f7fa;
-        align-self: flex-end;
-    }
-
-    .message.bot {
-        background-color: #eeeeee;
-        align-self: flex-start;
-    }
-
-    .chat-input {
-        padding: 10px;
-        border-top: 1px solid #ccc;
-    }
-
-    .chat-input input {
-        width: 100%;
-        padding: 10px;
-        font-size: 14px;
-        border-radius: 8px;
-        border: 1px solid #ccc;
-        outline: none;
-    }
-    </style>
-
-    <div class="chat-container">
-        <div class="chat-toggle" onclick="toggleChat()">💬</div>
-        <div class="chat-window" id="chatWindow">
-            <div class="chat-header">FinBot</div>
-            <div id="chatMessages">
-                <div class="message bot"><strong>FinBot:</strong> Hello 👋 How can I assist you today?</div>
+    if logged_in:
+        components.html(f"""
+            <style>
+            .chat-container {{
+                position: relative;
+                width: 100%;
+                height: 500px;
+            }}
+    
+            .chat-toggle {{
+                position: absolute;
+                bottom: 0;
+                right: 0;
+                background-color: #4CAF50;
+                color: white;
+                border-radius: 50%;
+                width: 60px;
+                height: 60px;
+                font-size: 28px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                transition: background 0.3s ease;
+            }}
+    
+            .chat-toggle:hover {{
+                background-color: #388e3c;
+            }}
+    
+            .chat-window {{
+                display: none;
+                position: absolute;
+                bottom: 80px;
+                right: 0;
+                width: 100%;
+                height: 420px;
+                background-color: white;
+                border-radius: 15px;
+                box-shadow: 0 8px 20px rgba(0,0,0,0.25);
+                overflow: hidden;
+                flex-direction: column;
+            }}
+    
+            .chat-window.open {{
+                display: flex;
+                flex-direction: column;
+            }}
+    
+            .chat-header {{
+                background: linear-gradient(135deg, #4158d0, #c850c0);
+                color: white;
+                padding: 12px;
+                text-align: center;
+                font-weight: bold;
+                font-size: 16px;
+            }}
+    
+            #chatMessages {{
+                flex: 1;
+                padding: 10px;
+                overflow-y: auto;
+                background-color: #f7f7f7;
+                display: flex;
+                flex-direction: column;
+                scroll-behavior: smooth;
+            }}
+    
+            .message {{
+                padding: 10px 14px;
+                border-radius: 12px;
+                font-size: 14px;
+                max-width: 85%;
+                margin: 5px 0;
+            }}
+    
+            .message.user {{
+                background-color: #e0f7fa;
+                align-self: flex-end;
+            }}
+    
+            .message.bot {{
+                background-color: #eeeeee;
+                align-self: flex-start;
+            }}
+    
+            .chat-input {{
+                padding: 10px;
+                border-top: 1px solid #ccc;
+            }}
+    
+            .chat-input input {{
+                width: 100%;
+                padding: 10px;
+                font-size: 14px;
+                border-radius: 8px;
+                border: 1px solid #ccc;
+                outline: none;
+            }}
+            </style>
+    
+            <div class="chat-container">
+                <div class="chat-toggle" onclick="toggleChat()">💬</div>
+                <div class="chat-window" id="chatWindow">
+                    <div class="chat-header">FinBot</div>
+                    <div id="chatMessages">
+                        <div class="message bot">Hello,{username}, how can I assist you today?</div>
+                    </div>
+                    <div class="chat-input">
+                        <input type="text" id="chatInput" placeholder="Type your message..." onkeydown="handleEnter(event)">
+                    </div>
+                </div>
             </div>
-            <div class="chat-input">
-                <input type="text" id="chatInput" placeholder="Type your message..." onkeydown="handleEnter(event)">
-            </div>
-        </div>
-    </div>
-
-    <script>
-    function toggleChat() {
-        const chatWindow = document.getElementById("chatWindow");
-        chatWindow.classList.toggle("open");
-    }
-
-    function handleEnter(event) {
-        if (event.key === "Enter") {
-            const input = document.getElementById("chatInput");
-            const msg = input.value.trim();
-            if (msg !== "") {
-                const chat = document.getElementById("chatMessages");
-                chat.innerHTML += `<div class='message user'><strong>You:</strong> ${msg}</div>`;
-                chat.innerHTML += `<div class='message bot'><strong>FinBot:</strong> I'm just a demo 🤖</div>`;
-                input.value = "";
-                setTimeout(() => {
-                    chat.scrollTop = chat.scrollHeight;
-                }, 100);
-            }
-        }
-    }
-    </script>
-    """, height=600)
+    
+            <script>
+            function toggleChat() {{
+                const chatWindow = document.getElementById("chatWindow");
+                chatWindow.classList.toggle("open");
+            }}
+    
+            function formatBotReply(text) {{
+                return text
+                    .replace(/\\n/g, "<br>")
+                    .replace(/\\*\\*(.*?)\\*\\*/g, "<strong>$1</strong>")
+                    .replace(/\\* (.*?)<br>/g, "• $1<br>");
+            }}
+    
+            async function handleEnter(event) {{
+                if (event.key === "Enter") {{
+                    const input = document.getElementById("chatInput");
+                    const msg = input.value.trim();
+                    if (msg !== "") {{
+                        const chat = document.getElementById("chatMessages");
+                        chat.innerHTML += `<div class='message user'>${{msg}}</div>`;
+                        input.value = "";
+    
+                        const formData = new FormData();
+                        formData.append("query", msg);
+                        formData.append("role", "{role}");
+    
+                        try {{
+                            console.log("📤 Sending to /rag_chat");
+                            const response = await fetch("http://localhost:8001/rag_chat", {{
+                                method: "POST",
+                                body: formData
+                            }});
+                            console.log("📥 Raw response:", response);
+    
+                            if (!response.ok) {{
+                                throw new Error("Server returned error: " + response.status);
+                            }}
+    
+                            const data = await response.json();
+                            console.log("✅ Parsed response:", data);
+    
+                            const botReply = data.response || "Sorry, I couldn't find anything relevant.";
+                            chat.innerHTML += `<div class='message bot'><br>${{formatBotReply(botReply)}}</div>`;
+                        }} catch (error) {{
+                            console.error("❌ Error during fetch or parse:", error);
+                            chat.innerHTML += `<div class='message bot'>Sorry, something went wrong 😢</div>`;
+                        }}
+    
+                        setTimeout(() => {{
+                            chat.scrollTop = chat.scrollHeight;
+                        }}, 100);
+                    }}
+                }}
+            }}
+            </script>
+        """, height=600)
+    else:
+        st.warning("🔒 Please login to access FinBot (the chatbot assistant).")
