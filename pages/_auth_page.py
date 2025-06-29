@@ -31,6 +31,16 @@ if st.session_state.logged_in:
     st.switch_page("pages/main_content.py")
     st.stop()
 
+# --- Hide Sidebar ---
+st.markdown("""
+<style>
+[data-testid="stSidebar"], [data-testid="collapsedControl"] {
+    display: none !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
+
 # 🎨 CSS
 st.markdown("""
 <style>

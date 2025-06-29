@@ -6,22 +6,33 @@ st.set_page_config(page_title="Features - FinEdge", layout="wide")
 
 # username = st.session_state.get("username", "Guest")
 query_params = st.query_params
-username = query_params.get("username", [None])[0]
-print(username)
-if "username" in query_params:
-    st.session_state["username"] = query_params["username"]
-    st.session_state["logged_in"] = True  # Trust based on query param if required
-page = query_params.get("page", [None])
-print("Page details================",st.session_state)
+username = (
+    query_params.get("username", ["Guest"])
+    if query_params.get("username")
+    else st.session_state.get("username", "Guest")
+)
+
+page = query_params.get("page", [None]) if query_params.get("page") else None
+print("Page details================",st.session_state,username,query_params)
+st.session_state["username"] = username
 if page == "features":
+    st.session_state.page = "features"
+    st.session_state["logged_in"] = True
     st.switch_page("pages/feature.py")
 elif page == "about":
+    st.session_state.page = "about"
+    st.session_state["logged_in"] = True
     st.switch_page("pages/about.py")
-elif page == "contact":
-    st.switch_page("pages/contact.py")
 elif page == "auth_page":
+    st.session_state.page = "auth_page"
+    st.session_state["logged_in"] = True
     st.switch_page("pages/_auth_page.py")
 elif page == "home":
+    print("setting the values", query_params, query_params.get("username"))
+    st.query_params["page"] = "main_content"
+    st.query_params["username"] = query_params.get("username")
+    st.session_state["username"] = query_params.get("username")
+    st.session_state["logged_in"] = True
     st.switch_page("pages/main_content.py")
 
 

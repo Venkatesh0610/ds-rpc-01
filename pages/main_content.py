@@ -45,16 +45,37 @@ restore_session_state()
 query_params = st.query_params
 page = query_params.get("page", [None])
 if page == "features":
-    st.query_params["page"] = "main_content"
-    st.query_params["username"] = st.session_state.get("username", "Guest")
+    print("setting the values",query_params,query_params.get("username"))
+    st.query_params.update({
+        "page": "features",
+        "username": query_params.get("username")
+    })
+    st.session_state.username = query_params.get("username")
+    st.session_state.page = "features"
     st.switch_page("pages/feature.py")
 elif page == "about":
+    st.query_params.update({
+        "page": "about",
+        "username": query_params.get("username")
+    })
+    st.session_state.username = query_params.get("username")
+    st.session_state.page = "about"
     st.switch_page("pages/about.py")
-elif page == "contact":
-    st.switch_page("pages/contact.py")
 elif page == "auth_page":
+    st.query_params.update({
+        "page": "auth_page",
+        "username": query_params.get("username")
+    })
+    st.session_state.username = query_params.get("username")
+    st.session_state.page = "auth_page"
     st.switch_page("pages/_auth_page.py")
 elif page == "home":
+    st.query_params.update({
+        "page": "main_content",
+        "username": query_params.get("username")
+    })
+    st.session_state.username = query_params.get("username")
+    st.session_state.page = "main_content"
     st.switch_page("pages/main_content.py")
 
 # --- Page Configuration ---

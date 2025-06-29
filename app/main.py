@@ -212,6 +212,11 @@ def build_vectors():
 
     print("\n✅ Vector building complete.\n")
     return {"status": "completed", "details": logs}
+from collections import defaultdict, deque
+
+# Store last 5 chat turns per user/role (can be extended to use username too)
+chat_memory = defaultdict(lambda: deque(maxlen=5))
+
 
 @app.post("/rag_chat")
 def rag_chat(query: str = Form(...), role: str = Form(...)):
@@ -237,61 +242,88 @@ def rag_chat(query: str = Form(...), role: str = Form(...)):
         retriever = vectordb.as_retriever(
             search_type="mmr",
             search_kwargs={
-                "k": 6,
-                "lambda_mult": 0.6
+                "k": 10,  # Increase to give the model more context to work with
+                "lambda_mult": 0.5  # 0.5 balances relevance (0.0) and diversity (1.0)
             }
         )
-        print("🔍 Querying vector store...")
         docs = retriever.invoke(query)
-        print(docs)
-        print(f"📄 Retrieved {len(docs)} relevant documents.")
     except Exception as e:
-        msg = f"❌ Error retrieving documents: {e}"
-        print(msg)
-        raise HTTPException(status_code=500, detail=msg)
+        raise HTTPException(status_code=500, detail=f"❌ Retrieval error: {e}")
 
     if not docs:
-        print("🚫 No relevant documents found.")
         return {"response": "No relevant information found."}
 
     context = "\n\n".join(doc.page_content for doc in docs)
-    print(f"\n📚 Context for LLM:\n---\n{context[:500]}...\n---")
+
+    # 🔁 Get chat history
+    history = chat_memory[role]
+    formatted_history = ""
+    for i, (q, a) in enumerate(history):
+        formatted_history += f"\nUser: {q}\nFinBot: {a}"
 
     prompt = PromptTemplate.from_template("""
-    You are a secure, intelligent assistant named FinBot. Respond to user queries strictly based on their role and the given context.
+    You are FinBot — a professional, intelligent assistant designed to assist users in finance with crisp, engaging, and secure replies. Your core directive is to **strictly adhere to financial topics and the provided context**.
 
-    User Role: {role}  
+    ---
+
+    User Role: {role}
     User Question: {query}
 
-    Rules:
-    - Only answer questions using the <context> provided.
-    - Do **not** access or infer data for other roles.
-    - If the query is outside the user's role or context, reply with:  
-      "Access Denied: You are not authorized to view this information. Please ask something related to your role."
-    - Do not mention “based on the context” or other filler. Just give the clean answer.
-    - Use bullet points for clarity if listing items.
-    - If applicable, include source document names only where mentioned.
+    Conversation History:
+    {history}
+
+    ---
+
+    **Instructions for FinBot:**
+
+    1.  🎯 **Greeting Handling**:
+        If the user input is **ONLY** a greeting (e.g., "Hi", "Hello", "Hey FinBot"), respond **ONLY** with:
+        "Hi, I’m FinBot. How can I assist you with your {role} data today?"
+        Keep it simple and friendly — do not add extra info or answer anything else.
+
+    2.  🚫 **Strict Scope Enforcement (Critical!)**:
+        - **NEVER** answer general knowledge questions or queries unrelated to finance.
+        - **NEVER** answer questions where the information is not **explicitly and directly** present within the <context>.
+        - **Always** choose one of the "Concise Redirection" responses (Rule 4) for any question that falls outside the defined scope (general, non-financial, or not found in context).
+        - Do not guess, assume, or pull from external knowledge. Your sole source of truth is the provided <context>.
+
+    3.  ✅ **If you CAN answer (Financial & In-Context)**:
+        - Give a short, well-written answer in full sentences.
+        - Be confident, informative, and clear. Do not hallucinate.
+        - Ensure the response contains **only** the answer to the question, no introductory phrases (like "Here's your answer," "Based on context," etc.), and do not repeat the user's question.
+
+    4.  ➡️ **Concise Redirection (for out-of-scope/unanswered queries)**:
+        - For any query that cannot be answered per Rule 2, choose **one** of these friendly and concise redirects. Do not elaborate on why information is missing or mention specific out-of-scope topics.
+            * “Hmm, I don’t have that info right now. Want to ask something else from your financial data?”
+            * “That’s outside the scope I can access. Let’s focus on your finance-related questions.”
+            * “I’m built for finance data — happy to help if you ask me something in that area!”
+
+    5.  💬 **General Style & Conciseness**:
+        - Be helpful and professional, like an AI advisor.
+        - Keep things human-readable, short, brief, and clear. Use bullet points if needed for lists.
+        - Avoid any conversational fillers or unnecessary preambles.
+
+    ---
 
     <context>
     {context}
     </context>
     """)
 
-    llm = ChatGroq(model_name="llama3-8b-8192", api_key=GROQ_API_KEY)
-    chain = LLMChain(llm=llm, prompt=prompt)
+    chain = LLMChain(llm=ChatGroq(model_name="llama3-8b-8192", api_key=GROQ_API_KEY), prompt=prompt)
 
     try:
-        print("🧠 Calling LLM to generate answer...")
         answer = chain.run({
             "context": context,
             "query": query,
-            "role": role
+            "role": role,
+            "history": formatted_history
         })
         print(f"✅ LLM Response: {answer[:300]}...\n")
     except Exception as e:
-        msg = f"❌ LLM error: {e}"
-        print(msg)
-        raise HTTPException(status_code=500, detail=msg)
+        raise HTTPException(status_code=500, detail=f"❌ LLM error: {e}")
+
+    # 📝 Save current interaction in memory
+    chat_memory[role].append((query, answer))
 
     return {"response": answer}
-
