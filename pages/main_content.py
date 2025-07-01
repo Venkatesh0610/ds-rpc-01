@@ -590,7 +590,7 @@ with col2:
     
                         try {{
                             console.log("📤 Sending to /rag_chat");
-                            const response = await fetch("http://localhost:8001/rag_chat", {{
+                            const response = await fetch("http://localhost:8000/rag_chat", {{
                                 method: "POST",
                                 body: formData
                             }});

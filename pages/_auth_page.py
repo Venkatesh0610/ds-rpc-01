@@ -3,7 +3,7 @@ import requests
 
 st.set_page_config(page_title="Login / Register", layout="centered")
 
-API_URL = "http://localhost:8001"  # Your FastAPI backend
+API_URL = "http://localhost:8000"  # Your FastAPI backend
 
 # ✅ Initialize session state
 for key, default in {

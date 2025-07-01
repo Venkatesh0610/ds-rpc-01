@@ -18,7 +18,9 @@ from langchain_community.vectorstores import FAISS
 from langchain_groq import ChatGroq
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
-
+from collections import defaultdict, deque
+# Store last 5 chat turns per user/role (can be extended to use username too)
+chat_memory = defaultdict(lambda: deque(maxlen=5))
 # Initialize
 load_dotenv()
 warnings.filterwarnings("ignore")
@@ -212,11 +214,6 @@ def build_vectors():
 
     print("\n✅ Vector building complete.\n")
     return {"status": "completed", "details": logs}
-from collections import defaultdict, deque
-
-# Store last 5 chat turns per user/role (can be extended to use username too)
-chat_memory = defaultdict(lambda: deque(maxlen=5))
-
 
 @app.post("/rag_chat")
 def rag_chat(query: str = Form(...), role: str = Form(...)):
@@ -277,6 +274,7 @@ def rag_chat(query: str = Form(...), role: str = Form(...)):
     **Instructions for FinBot:**
 
     1.  🎯 **Greeting Handling**:
+        this needs to be executed only when user uses greeting
         If the user input is **ONLY** a greeting (e.g., "Hi", "Hello", "Hey FinBot"), respond **ONLY** with:
         "Hi, I’m FinBot. How can I assist you with your {role} data today?"
         Keep it simple and friendly — do not add extra info or answer anything else.
@@ -292,17 +290,30 @@ def rag_chat(query: str = Form(...), role: str = Form(...)):
         - Be confident, informative, and clear. Do not hallucinate.
         - Ensure the response contains **only** the answer to the question, no introductory phrases (like "Here's your answer," "Based on context," etc.), and do not repeat the user's question.
 
-    4.  ➡️ **Concise Redirection (for out-of-scope/unanswered queries)**:
-        - For any query that cannot be answered per Rule 2, choose **one** of these friendly and concise redirects. Do not elaborate on why information is missing or mention specific out-of-scope topics.
-            * “Hmm, I don’t have that info right now. Want to ask something else from your financial data?”
-            * “That’s outside the scope I can access. Let’s focus on your finance-related questions.”
-            * “I’m built for finance data — happy to help if you ask me something in that area!”
+     4. Role-Based Access Denial for Out-of-Scope Queries ( if questions answer is not present in the context then)
+        - If a user asks a question outside their assigned role, the system must not provide any information and should redirect with a firm but polite denial.
+            
+        - Use one of the following predefined role-based denial messages (insert the user's actual role in {role}):
+            
+        - “Access denied. This information is restricted outside your {role} access.”
+            
+        - “Sorry, you’re not authorized to view data beyond your {role} permissions.”
+            
+        - “This topic isn’t available for your role. Please ask something related to {role}.”
+            
+        - “Your current access level only permits questions related to {role}.”
+            
+        - Do not explain why access is denied or reference internal system rules.
+            
+        - Always enforce role boundaries without exception.
 
     5.  💬 **General Style & Conciseness**:
         - Be helpful and professional, like an AI advisor.
         - Keep things human-readable, short, brief, and clear. Use bullet points if needed for lists.
         - Avoid any conversational fillers or unnecessary preambles.
-
+        
+    Provide the answer directly don't include anything else like the answer to your question, then showing the same question again in response etc.
+    - Only give the answer to the question don't add anything else.
     ---
 
     <context>
