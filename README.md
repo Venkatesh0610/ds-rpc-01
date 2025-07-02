@@ -130,6 +130,34 @@ base_url = "https://your-fastapi-url.com"
 
 ---
 
+## 🔧 Further Development Ideas
+
+* **Prompt Refinement**
+  
+  Improve response quality with better-tuned and role-specific prompt templates.
+
+* **Multi-LLM Support**
+  
+  Add support for OpenAI, Claude, Gemini, etc., for flexible LLM backends.
+
+* **Granular Role Permissions**
+  
+  Extend beyond department roles with read-only, admin, and reviewer access.
+
+* **Upload & Embed Documents**
+
+  Enable role-based document upload for real-time vector creation.
+
+* **Persistent Chat History**
+  
+  Save user conversations using a database for tracking and follow-ups.
+
+* **Feedback System**
+  
+  Let users rate responses to improve accuracy and relevance over time.
+
+---
+
 ## 👤 About the Developer
 
 Built by **A Venkatesh** as part of an advanced internal chatbot system for secure and role-aware information access, powered by **Groq’s blazing-fast LLMs** and **modern AI tooling**.
