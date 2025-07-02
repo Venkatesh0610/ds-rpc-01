@@ -2,7 +2,7 @@
 
 A secure, intelligent AI chatbot for internal use, built with **Streamlit**, **FastAPI**, **JWT Auth**, and **RAG using FAISS**. Powered by **Groq's `llama3-8b-8192` model**, FinBot delivers **role-specific insights** in real time with blazing speed.
 
-https://youtu.be/0Bfxs5S0HyM
+[![Watch the video](https://github.com/user-attachments/assets/ea83e85e-0893-4b29-8d30-ddab77c3354a)](https://youtu.be/0Bfxs5S0HyM)
 
 ---
 
